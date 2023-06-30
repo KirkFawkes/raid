@@ -26,11 +26,3 @@ push-docker: generate build-docker
 	`AWS_PROFILE=adunai aws ecr get-login --no-include-email`
 	docker push $(ECR_URL)
 	docker logout
-
-.PHONY: snapshots
-snapshots:
-	go run cmd/snapshots/main.go
-
-.PHONY: video
-video:
-	mencoder "mf://snapshots/*.png" -o video.mp4 -ovc lavc -lavcopts vcodec=mjpeg -fps 60
