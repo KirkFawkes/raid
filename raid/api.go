@@ -2,11 +2,9 @@ package raid
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"strconv"
 	"strings"
@@ -22,16 +20,6 @@ import (
 	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
 )
-
-//go:generate make -C assets
-//go:embed assets/index.html
-var indexContent []byte
-
-//go:embed static/*
-var staticFS embed.FS
-
-//go:embed assets/index.en.html
-var indexEnContent []byte
 
 type StatesResponse struct {
 	States     []State   `json:"states"`
@@ -68,7 +56,6 @@ type APIServer struct {
 	listRecordsFunc   func() ([]Record, error)
 	addrRateLimiter   throttled.RateLimiter
 	apiKeyRateLimiter throttled.RateLimiter
-	staticDirFS       fs.FS
 }
 
 func CreateRateLimiter(perSec int, burst int) throttled.RateLimiter {
@@ -94,11 +81,6 @@ func NewAPIServer(host string, port uint16, apiKeys []string, updaterState *Upda
 		apiKeysMap[key] = true
 	}
 
-	staticDirFS, err := fs.Sub(staticFS, "static")
-	if err != nil {
-		log.Fatalf("api: create sub fs: %v", err)
-	}
-
 	return &APIServer{
 		host:              host,
 		port:              port,
@@ -109,7 +91,6 @@ func NewAPIServer(host string, port uint16, apiKeys []string, updaterState *Upda
 		listRecordsFunc:   listRecordsFunc,
 		addrRateLimiter:   CreateRateLimiter(10, 10),
 		apiKeyRateLimiter: CreateRateLimiter(100, 100),
-		staticDirFS:       staticDirFS,
 	}
 }
 
@@ -316,23 +297,6 @@ func (a *APIServer) CreateRouter(ctx context.Context) *mux.Router {
 		enc := json.NewEncoder(rw)
 		_ = enc.Encode(records)
 	})
-
-	webMux.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
-		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		rw.WriteHeader(200)
-		_, _ = rw.Write(indexContent)
-	})
-	webMux.HandleFunc("/en", func(rw http.ResponseWriter, r *http.Request) {
-		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		rw.WriteHeader(200)
-		_, _ = rw.Write(indexEnContent)
-	})
-	webMux.HandleFunc("/en", func(rw http.ResponseWriter, r *http.Request) {
-		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		rw.WriteHeader(200)
-		_, _ = rw.Write(indexEnContent)
-	})
-	webMux.PathPrefix("/").Handler(http.FileServer(http.FS(a.staticDirFS)))
 
 	return webMux
 }
