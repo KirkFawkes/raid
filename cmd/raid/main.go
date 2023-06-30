@@ -35,15 +35,13 @@ func main() {
 	}
 
 	updater := raid.NewUpdater(settings.TelegramChannel, settings.Timezone, settings.BacklogSize, updaterState)
-	mapGenerator := raid.NewMapGenerator(updaterState, updater.Updates)
 	delorean := raid.NewDelorean("history", updater.Updates)
-	apiServer := raid.NewAPIServer(settings.Host, settings.Port, settings.APIKeys, updaterState, updater.Updates, mapGenerator.MapData, delorean.ListRecords)
+	apiServer := raid.NewAPIServer(settings.Host, settings.Port, settings.APIKeys, updaterState, updater.Updates, delorean.ListRecords)
 	tcpServer := raid.NewTCPServer(1024, settings.APIKeys, updaterState, updater.Updates)
 
 	go updater.Run(ctx, wg, errch)
 	go apiServer.Run(ctx, wg, errch)
 	go tcpServer.Run(ctx, wg, errch)
-	go mapGenerator.Run(ctx, wg, errch)
 	go delorean.Run(ctx, wg, errch)
 
 	c := make(chan os.Signal, 1)
